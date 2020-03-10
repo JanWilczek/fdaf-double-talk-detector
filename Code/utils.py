@@ -4,19 +4,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def reshape_to_1d(array):
+def reshaped_to_1d(array):
     return array.reshape((array.shape[0], 1))
 
 def read_wav_file(path):
     rate, data = wavfile.read(path)
     data = data.astype(np.float32)
     data /= np.max(np.abs(data))
-    data = reshape_to_1d(data)
+    data = reshaped_to_1d(data)
     return data, rate
 
 def generate_microphone_signal(signal_loudspeaker, signal_noise, impulse_response, noise_start_samples):
     signal_microphone = np.convolve(signal_loudspeaker.reshape(-1), impulse_response.reshape(-1), mode='same')
-    signal_microphone = reshape_to_1d(signal_microphone)
+    signal_microphone = reshaped_to_1d(signal_microphone)
 
     signal_microphone[noise_start_samples:] += signal_noise[:-noise_start_samples]
     signal_microphone /= np.max(np.abs(signal_microphone))
@@ -24,6 +24,14 @@ def generate_microphone_signal(signal_loudspeaker, signal_noise, impulse_respons
     return signal_microphone
 
 def generate_signals():
+    """
+    Returns
+    -------
+    signal_microphone
+    signal_loudspeaker
+    impulse_response
+    sample_rate
+    """
     folder = r'../Data/'
 
     def process_file(filename): return read_wav_file(abspath(join(folder, filename)))
