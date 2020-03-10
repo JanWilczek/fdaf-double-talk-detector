@@ -4,44 +4,39 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def reshape_to_1d(array):
+    return array.reshape((array.shape[0], 1))
+
 def read_wav_file(path):
     rate, data = wavfile.read(path)
     data = data.astype(np.float32)
     data /= np.max(np.abs(data))
+    data = reshape_to_1d(data)
     return data, rate
 
-def generate_signal(filename):
-    signal, rate = read_wav_file(filename)
-    return signal, rate
+def generate_microphone_signal(signal_loudspeaker, signal_noise, impulse_response, noise_start_samples):
+    signal_microphone = np.convolve(signal_loudspeaker.reshape(-1), impulse_response.reshape(-1), mode='same')
+    signal_microphone = reshape_to_1d(signal_microphone)
 
-def reshape_to_1d(array):
-    return array.reshape((array.shape[0], 1))
+    signal_microphone[noise_start_samples:] += signal_noise[:-noise_start_samples]
+    signal_microphone /= np.max(np.abs(signal_microphone))
+
+    return signal_microphone
 
 def generate_signals():
     folder = r'../Data/'
-    path_male = abspath(join(folder, r'male.wav'))
-    path_female = abspath(join(folder, r'female.wav'))
-    path_impulse_response = abspath(join(folder, r'h.wav'))
 
-    signal_male, rate = generate_signal(path_male)
-    signal_female, rate = generate_signal(path_female)
-    impulse_response, rate = generate_signal(path_impulse_response)
+    def process_file(filename): return read_wav_file(abspath(join(folder, filename)))
 
-    signal_microphone = np.convolve(signal_female, impulse_response, mode='same')
+    signal_male, rate = process_file(r'male.wav')
+    signal_female, rate = process_file(r'female.wav')
+    impulse_response, rate = process_file(r'h.wav')
 
-    seconds_in = 4.5
-    samples_in = int(seconds_in * rate)
-
-    signal_microphone[samples_in:] += signal_male[:-samples_in]
-
-    signal_microphone = reshape_to_1d(signal_microphone)
-    signal_female = reshape_to_1d(signal_female)
-    impulse_response = reshape_to_1d(impulse_response)
+    signal_microphone = generate_microphone_signal(signal_female, signal_male, impulse_response, noise_start_samples=int(4.5 * rate))
 
     return signal_microphone, signal_female, impulse_response, rate
 
 def plot_signals(signal_microphone, signal_loudspeaker, impulse_response, signal_error, estimated_impulse_response, N):
-
     plt.figure()
     ax = plt.subplot(4, 1, 1)
     plt.plot(signal_microphone)
