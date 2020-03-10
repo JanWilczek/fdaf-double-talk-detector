@@ -2,7 +2,56 @@ from os.path import join, abspath
 from scipy.io import wavfile
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
+def nearest_pow_2(N):
+    """
+    Given the integer N, computes the lowest
+    power of 2 that is higher than it.
+    """
+    if ~math.log2(N).is_integer():
+        N = 2**math.ceil(math.log2(N))
+        print('Fix N to be power of 2:', N)
+    return N
+
+def get_shifted_blocks(x,M,S):
+    """
+    1D array to 2D array with shifts and blocks
+
+    Parameters
+    ----------
+    x : ndarray (in time-domain)
+        shape: (1 x N_samples) (Not necessary pow2)
+        Input signal.
+    M : int
+        Block size
+    S : int
+        Shift size (block length / # of shifts)
+
+    Returns (yields)
+    ----------
+    X_ : ndarray
+        shape: (L/(M/S) x M)
+    """
+
+    L = len(x)
+    N = M//S
+
+    #number of missing 0s from X
+    n0 = ((( (L//M + 1) * M) ) - L) % M
+    #pad with n0 0's
+
+    x = np.pad(x,((0,n0),(0,0)), 'constant')
+    L = len(x)
+    Nb = L//M
+
+    x = np.reshape(x,(Nb*N,M//N))
+
+    x_ = np.zeros((N*Nb,M))
+    for i in range(N*Nb-1):
+        x_[i,:] = x[i:i+N,:].ravel()
+
+    return x_
 
 def reshaped_to_1d(array):
     return array.reshape((array.shape[0], 1))
