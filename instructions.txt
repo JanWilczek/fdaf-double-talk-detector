@@ -1,0 +1,16 @@
+Task 1:
+Implement a block-based adaptive linear filter using fast convolution in the frequency domain.
+Start by implementing a (non-adaptive) linear filter in the frequency domain.
+Then, make it adaptive using FNLMS for adaptation.
+(see e.g. Shynk 1992)
+
+Task 2:
+Extend your adaptive filter with a double-talk detector to halt adaptation whenever the near-end speaker is active.
+Such detectors are often based on signal cross-correlation (or cross-PSD, for frequency-domain realizations).
+Thresholding the coherence (a normalized cross-PSD) is a rather simple approach (see e.g. Gaensler 1996).
+More elaborate schemes may employ fast-adapting background filters to prevent misadaptation of the actual foreground filter (see e.g. Buchner 2006).
+
+Task 3 (optional?):
+Implement a partitioning scheme for multidelay filtering (MDF).
+Adaptation parameters may be different for different partitions and affect the convergence/adaptation speed.
+Hoffman 2016
