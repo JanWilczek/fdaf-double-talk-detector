@@ -13,8 +13,10 @@ def read_wav_file(path):
 
 def generate_signal(filename):
     signal, rate = read_wav_file(filename)
-    # signal = signal.reshape((signal.shape[0], 1))
     return signal, rate
+
+def reshape_to_1d(array):
+    return array.reshape((array.shape[0], 1))
 
 def generate_signals():
     folder = r'../Data/'
@@ -32,6 +34,10 @@ def generate_signals():
     samples_in = int(seconds_in * rate)
 
     signal_microphone[samples_in:] += signal_male[:-samples_in]
+
+    signal_microphone = reshape_to_1d(signal_microphone)
+    signal_female = reshape_to_1d(signal_female)
+    impulse_response = reshape_to_1d(impulse_response)
 
     return signal_microphone, signal_female, impulse_response, rate
 
