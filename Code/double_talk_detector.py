@@ -39,7 +39,7 @@ class DoubleTalkDetector:
         self.h_b = np.zeros((2*L, ))
         self.s_k = []
         for k in range(0, self.K):
-            self.s_k = np.zeros((2 * N,))
+            self.s_k.append(np.zeros((2 * N,)))
         self.var2_y = 0.0
 
     def enqueue_loudspeaker_block(self, new_samples_block):
@@ -49,7 +49,11 @@ class DoubleTalkDetector:
 
         x_2N = np.vstack((self.x_k[0], new_samples_block))
         assert len(x_2N) == 2 * self.N
-        self.X_k.appendleft(np.diag(self.F_2N @ x_2N))
+
+        X_0_vec = self.F_2N @ x_2N
+        X_0 = np.diag(X_0_vec.reshape(-1))
+        assert X_0.shape == (2*self.N, 2*self.N)
+        self.X_k.appendleft(X_0)
         self.X_k.pop()
 
     def X(self):
@@ -74,11 +78,12 @@ class DoubleTalkDetector:
         self.h_b = self.h_b + 2 * (1 - self.lambd_b) * self.G_2 @ kalman_gain @ error_b
 
         for k in range(0, self.K):
-            self.s_k[k] = self.lambd_b * self.s_k[k] + (1 - self.lambd_b) * np.conj(self.X_k[k]) @ y_
+            self.s_k[k] = self.lambd_b * self.s_k[k] + (1 - self.lambd_b) * np.conj(self.X_k[k]) @ y_.reshape(-1)
 
         self.var2_y = self.lambd_b * self.var2_y + (1 - self.lambd_b) * np.dot(hermitian(y_), y_)
 
-        dzeta_sq = sum([np.dot(hermitian(self.h_b[self.N*k:self.N*(k+1) - 1]), self.s_k[k]) for k in range(0, self.K)]) / self.var2_y
+        partial_sums = [np.dot(hermitian(self.h_b[2*self.N*k:2*self.N*(k+1)]), self.s_k[k]) for k in range(0, self.K)]
+        dzeta_sq = sum(partial_sums) / self.var2_y
         dzeta = np.sqrt(dzeta_sq)
 
         if dzeta < self.threshold:
