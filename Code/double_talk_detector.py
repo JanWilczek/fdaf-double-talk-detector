@@ -88,7 +88,7 @@ class DoubleTalkDetector:
 
             self.K_1_ni = t_ni + self.b_ni * M_ni
 
-            self.phi_ni = self.phi_1_ni - np.conj(e_b_ni) * M_ni
+            self.phi_ni = phi_1_ni - np.conj(e_b_ni) * M_ni
 
             self.E_b_ni = self.lambd_kalman * (self.E_b_ni + np.pow(np.abs(e_b_ni), 2) / self.phi_ni)
 
