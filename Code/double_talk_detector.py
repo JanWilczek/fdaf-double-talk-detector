@@ -1,5 +1,6 @@
 from collections import deque
 import numpy as np
+from numpy.fft import fft, ifft
 
 def dft_matrix(size):
     F = np.zeros((size, size), dtype=complex)
@@ -50,7 +51,8 @@ class DoubleTalkDetector:
         x_2N = np.vstack((self.x_k[0], new_samples_block))
         assert len(x_2N) == 2 * self.N
 
-        X_0_vec = self.F_2N @ x_2N
+        # X_0_vec = self.F_2N @ x_2N
+        X_0_vec = fft(x_2N, axis=0)
         X_0 = np.diag(X_0_vec.reshape(-1))
         assert X_0.shape == (2*self.N, 2*self.N)
         self.X_k.appendleft(X_0)
@@ -63,6 +65,40 @@ class DoubleTalkDetector:
         assert X.shape == (2 * self.N, 2 * self.L)
         return X
 
+    def kalman_gain(self, X):
+        # K = ...
+        for ni in range(0, 2 * self.N):
+            # X_ni = X[ni, 
+            e_a_ni = np.conj(X_0_ni) - hermitian(self.a_ni) @ hermitian(X_ni)
+            e_a_ni_sq = np.power(np.abs(e_a_ni), 2)
+
+            phi_1_ni = self.phi_ni + e_a_ni_sq / self.E_a_ni
+
+            e_coeff = e_a_ni / self.E_a_ni
+            t_ni = np.zeros_like(self.K_1_ni)
+            t_ni[0] = e_coeff
+            t_ni[1:] = self.K_1_ni[:-1] - self.a_ni[:-1] * e_coeff
+            M_ni = self.K_1_ni[-1] - self.a_ni[-1] * e_coeff
+
+            self.E_a_ni = self.lambd_kalman * (self.E_a_ni + e_a_ni_sq / self.phi_ni)
+
+            self.a_ni = self.a_ni + self.K_1_ni * np.conj(e_a_ni) / self.phi_ni
+
+            e_b_ni = self.E_b_ni * M_ni
+
+            self.K_1_ni = t_ni + self.b_ni * M_ni
+
+            self.phi_ni = self.phi_1_ni - np.conj(e_b_ni) * M_ni
+
+            self.E_b_ni = self.lambd_kalman * (self.E_b_ni + np.pow(np.abs(e_b_ni), 2) / self.phi_ni)
+
+            self.b_ni = self.b_ni + self.K_1_ni * np.conj(e_b_ni) / self.phi_ni
+
+            K_ni = self.K_1_ni / self.phi_ni
+    
+            # K = K_ni...
+        return K
+
     def is_double_talk(self, loudspeaker_samples_block, microphone_samples_block):
         self.enqueue_loudspeaker_block(loudspeaker_samples_block)
 
@@ -71,11 +107,13 @@ class DoubleTalkDetector:
         assert self.S_prim.shape == (2 * self.L, 2 * self.L)
 
         kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
+        # kalman_gain = self.kalman_gain()
         assert kalman_gain.shape == (2 * self.L, 2 * self.N)
 
         zeros_y = np.vstack((np.zeros((self.N, 1)), microphone_samples_block))
         assert zeros_y.shape == (2 * self.N, 1)
-        y_ = self.F_2N @ zeros_y
+        # y_ = self.F_2N @ zeros_y
+        y_ = fft(zeros_y, axis=0)
 
         background_y_estimate = self.G_1 @ X @ self.h_b
         error_b = np.subtract(y_.reshape(-1), background_y_estimate)
