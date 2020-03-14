@@ -23,7 +23,7 @@ def generate_microphone_signal(signal_loudspeaker, signal_noise, impulse_respons
 
     return signal_microphone
 
-def generate_signals():
+def generate_signals(length_in_seconds=10):
     """
     Returns
     -------
@@ -42,7 +42,9 @@ def generate_signals():
 
     signal_microphone = generate_microphone_signal(signal_female, signal_male, impulse_response, noise_start_samples=int(4.5 * rate))
 
-    return signal_microphone, signal_female, impulse_response, rate
+    length_in_samples = int(length_in_seconds * rate)
+
+    return signal_microphone[:length_in_samples], signal_female[:length_in_samples], impulse_response, rate
 
 def plot_signals(signal_microphone, signal_loudspeaker, impulse_response, signal_error, estimated_impulse_response, N):
     plt.figure()

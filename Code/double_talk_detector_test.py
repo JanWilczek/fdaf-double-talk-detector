@@ -2,6 +2,7 @@ from utils import generate_signals
 from double_talk_detector import DoubleTalkDetector
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 
 def plot_results(signal_microphone, signal_loudspeaker, detector_output):
@@ -27,9 +28,13 @@ def main():
 
     detector_output = np.zeros((len(signal_loudspeaker),))
 
-    nb_iterations = len(signal_loudspeaker) // N // 10
+    time_accumulator = 0.0
+
+    nb_iterations = len(signal_loudspeaker) // N
     for i in range(0, nb_iterations):
         print(f'Iteration {i} out of {nb_iterations-1}')
+
+        start = time.time()
 
         mic_block = signal_microphone[i*N:(i+1)*N]
         speaker_block = signal_loudspeaker[i*N:(i+1)*N]
@@ -37,7 +42,11 @@ def main():
         if dtd.is_double_talk(speaker_block, mic_block):
             detector_output[i*N:(i+1)*N] = np.ones((N,))
 
-    plot_results(signal_microphone[:nb_iterations*N], signal_loudspeaker[:nb_iterations*N], detector_output[:nb_iterations*N])
+        end = time.time()
+        time_accumulator += end - start
+        print(f'Average iteration time: {time_accumulator / (i+1)}')
+
+    plot_results(signal_microphone, signal_loudspeaker, detector_output)
 
 if __name__ == "__main__":
     main()

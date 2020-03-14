@@ -88,7 +88,7 @@ class DoubleTalkDetector:
             self.s_k[k] = self.lambd_b * self.s_k[k] + (1 - self.lambd_b) * np.conj(self.X_k[k]) @ y_.reshape(-1)
             assert self.s_k[k].shape == (2 * self.N,)
 
-        self.var2_y = self.lambd_b * self.var2_y + (1 - self.lambd_b) * np.dot(hermitian(y_), y_)
+        self.var2_y = (self.lambd_b * self.var2_y + (1 - self.lambd_b) * np.dot(hermitian(y_), y_)).item()
         assert np.isscalar(self.var2_y)
 
         partial_sums = [np.dot(hermitian(self.h_b[2*self.N*k:2*self.N*(k+1)]), self.s_k[k]) for k in range(0, self.K)]
