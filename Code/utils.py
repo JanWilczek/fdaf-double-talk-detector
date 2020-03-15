@@ -1,5 +1,6 @@
 from os.path import join, abspath
 from scipy.io import wavfile
+import scipy.signal as sig
 import numpy as np
 import matplotlib.pyplot as plt
 import math
@@ -13,6 +14,10 @@ def nearest_pow_2(N):
         N = 2**math.ceil(math.log2(N))
         print('Fix N to be power of 2:', N)
     return N
+
+def pad_N(x,n0):
+    x = np.pad(x,((n0,0),(0,0)), 'constant')
+    return x
 
 def get_shifted_blocks(x,M,S):
     """
@@ -42,6 +47,7 @@ def get_shifted_blocks(x,M,S):
     #pad with n0 0's
 
     x = np.pad(x,((0,n0),(0,0)), 'constant')
+
     L = len(x)
     Nb = L//M
 
@@ -64,15 +70,16 @@ def read_wav_file(path):
     return data, rate
 
 def generate_microphone_signal(signal_loudspeaker, signal_noise, impulse_response, noise_start_samples):
-    signal_microphone = np.convolve(signal_loudspeaker.reshape(-1), impulse_response.reshape(-1), mode='same')
+    signal_microphone = sig.convolve(signal_loudspeaker.reshape(-1),impulse_response.reshape(-1),mode='full',method='direct')
     signal_microphone = reshaped_to_1d(signal_microphone)
+    signal_microphone = signal_microphone[0:len(signal_loudspeaker)]
 
     signal_microphone[noise_start_samples:] += signal_noise[:-noise_start_samples]
-    signal_microphone /= np.max(np.abs(signal_microphone))
+    #signal_microphone /= np.max(np.abs(signal_microphone))
 
     return signal_microphone
 
-def generate_signals():
+def generate_signals(h=None):
     """
     Returns
     -------
@@ -88,7 +95,8 @@ def generate_signals():
     signal_male, rate = process_file(r'male.wav')
     signal_female, rate = process_file(r'female.wav')
     impulse_response, rate = process_file(r'h.wav')
-
+    if h is not None:
+        impulse_response = h
     signal_microphone = generate_microphone_signal(signal_female, signal_male, impulse_response, noise_start_samples=int(4.5 * rate))
 
     return signal_microphone, signal_female, impulse_response, rate
