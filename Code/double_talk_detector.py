@@ -44,13 +44,13 @@ class DoubleTalkDetector:
         self.var2_y = 0.0
 
         # Fast Kalman gain computation variables
-        self.a = np.zeros((self.K, 2 * self.N), dtype=complex)
+        self.a = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
         self.phi = np.ones((2 * self.N,), dtype=complex)
         self.E_a = np.ones((2 * self.N,), dtype=complex)
         self.E_b = np.zeros((2 * self.N,), dtype=complex)
-        self.K_1 = np.zeros((self.K, 2 * self.N), dtype=complex)
+        self.K_1 = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
         self.lambd_kalman = 0.8 # What should its value be?
-        self.b = np.zeros((self.K, 2 * self.N), dtype=complex)
+        self.b = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
 
     def enqueue_loudspeaker_block(self, new_samples_block):
         self.x_k.appendleft(new_samples_block)
@@ -75,10 +75,12 @@ class DoubleTalkDetector:
         return X
 
     def kalman_gain(self, X):
-        K = np.zeros((2 * self.L, 2 * self.N))
+        K = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
         for ni in range(0, 2 * self.N):
-            X_ni = X[ni, list(range(ni,2*self.L,2*self.N))]
-            assert X_ni.shape == (self.K,)
+            # X_ni = X[ni, list(range(ni,2*self.L,2*self.N))]
+            X_ni = X[ni, :]
+            # assert X_ni.shape == (self.K,)
+            assert X_ni.shape == (2 * self.L,)
 
             e_a_ni = np.conj(X_ni[0]) - hermitian(self.a[:, ni]) @ hermitian(X_ni)
             assert np.isscalar(e_a_ni)
@@ -97,12 +99,12 @@ class DoubleTalkDetector:
             assert np.isscalar(self.E_a[ni])
 
             self.a[:, ni] = self.a[:, ni] + self.K_1[:, ni] * np.conj(e_a_ni) / self.phi[ni]
-            assert self.a[:, ni].shape == (self.K,)
+            assert self.a[:, ni].shape == (2 * self.L,)
 
             e_b_ni = self.E_b[ni] * M_ni
 
             self.K_1[:, ni] = t_ni + self.b[:, ni] * M_ni
-            assert self.K_1[:, ni].shape == (self.K, )
+            assert self.K_1[:, ni].shape == (2 * self.L, )
 
             self.phi[ni] = phi_1_ni - np.conj(e_b_ni) * M_ni
 
@@ -112,7 +114,7 @@ class DoubleTalkDetector:
             self.b[:, ni] = self.b[:, ni] + self.K_1[:, ni] * np.conj(e_b_ni) / self.phi[ni]
 
             K_ni = self.K_1[:, ni] / self.phi[ni]
-            assert K_ni.shape == (self.K, )
+            assert K_ni.shape == (2 * self.L, )
     
             K[:, ni] = K_ni
         return K
