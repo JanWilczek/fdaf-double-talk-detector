@@ -18,12 +18,15 @@ def generate_microphone_signal(signal_loudspeaker, signal_noise, impulse_respons
     signal_microphone = np.convolve(signal_loudspeaker.reshape(-1), impulse_response.reshape(-1), mode='same')
     signal_microphone = reshaped_to_1d(signal_microphone)
 
-    signal_microphone[noise_start_samples:] += signal_noise[:-noise_start_samples]
+    near_end = np.zeros_like(signal_microphone)
+    near_end[noise_start_samples:min(noise_start_samples+len(signal_noise),len(near_end))] = signal_noise[:min(len(signal_noise), len(near_end) - noise_start_samples)]
+
+    signal_microphone += near_end
     signal_microphone /= np.max(np.abs(signal_microphone))
 
-    return signal_microphone
+    return signal_microphone, near_end
 
-def generate_signals(length_in_seconds=10):
+def generate_signals(noise_start_in_seconds=4.5, length_in_seconds=10):
     """
     Returns
     -------
@@ -40,11 +43,11 @@ def generate_signals(length_in_seconds=10):
     signal_female, rate = process_file(r'female.wav')
     impulse_response, rate = process_file(r'h.wav')
 
-    signal_microphone = generate_microphone_signal(signal_female, signal_male, impulse_response, noise_start_samples=int(4.5 * rate))
+    signal_microphone, near_end = generate_microphone_signal(signal_female, signal_male, impulse_response, noise_start_samples=int(noise_start_in_seconds * rate))
 
     length_in_samples = int(length_in_seconds * rate)
 
-    return signal_microphone[:length_in_samples], signal_female[:length_in_samples], impulse_response, rate
+    return signal_microphone[:length_in_samples], signal_female[:length_in_samples], impulse_response, rate, near_end
 
 def plot_signals(signal_microphone, signal_loudspeaker, impulse_response, signal_error, estimated_impulse_response, N):
     plt.figure()

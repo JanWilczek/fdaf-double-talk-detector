@@ -115,11 +115,11 @@ class DoubleTalkDetector:
         # y_ = self.F_2N @ zeros_y
         y_ = fft(zeros_y, axis=0)
 
-        background_y_estimate = self.G_1 @ X @ self.h_b
+        background_y_estimate = self.G_1 @ (X @ self.h_b)
         error_b = np.subtract(y_.reshape(-1), background_y_estimate)
         assert error_b.shape == (2 * self.N,)
 
-        self.h_b = self.h_b + 2 * (1 - self.lambd_b) * self.G_2 @ kalman_gain @ error_b
+        self.h_b = self.h_b + 2 * (1 - self.lambd_b) * self.G_2 @ (kalman_gain @ error_b)
         assert self.h_b.shape == (2 * self.L,)
 
         for k in range(0, self.K):
