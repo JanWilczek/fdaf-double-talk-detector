@@ -43,6 +43,15 @@ class DoubleTalkDetector:
             self.s_k.append(np.zeros((2 * N,)))
         self.var2_y = 0.0
 
+        # Fast Kalman gain computation variables
+        self.a = np.zeros((self.K, 2 * self.N))
+        self.phi = np.zeros((2 * self.N))
+        self.E_a = np.zeros((2 * self.N))
+        self.E_b = np.zeros((2 * self.N))
+        self.K_1 = np.zeros((self.K, 2 * self.N))
+        self.lambd_kalman = 0.8 # What should its value be?
+        self.b = np.zeros((self.K, @ * self.N))
+
     def enqueue_loudspeaker_block(self, new_samples_block):
         self.x_k.appendleft(new_samples_block)
         self.x_k.pop()
@@ -66,37 +75,46 @@ class DoubleTalkDetector:
         return X
 
     def kalman_gain(self, X):
-        # K = ...
+        K = np.zeros((2 * self.L, 2 * self.N))
         for ni in range(0, 2 * self.N):
-            # X_ni = X[ni, 
-            e_a_ni = np.conj(X_0_ni) - hermitian(self.a_ni) @ hermitian(X_ni)
+            X_ni = X[ni, list(range(ni,2*self.L,2*self.N))]
+            assert X_ni.shape == (self.K,)
+
+            e_a_ni = np.conj(X_ni[0]) - hermitian(self.a[:, ni]) @ hermitian(X_ni)
+            assert np.isscalar(e_a_ni)
             e_a_ni_sq = np.power(np.abs(e_a_ni), 2)
 
-            phi_1_ni = self.phi_ni + e_a_ni_sq / self.E_a_ni
+            phi_1_ni = self.phi[ni] + e_a_ni_sq / self.E_a[ni]
 
-            e_coeff = e_a_ni / self.E_a_ni
-            t_ni = np.zeros_like(self.K_1_ni)
+            e_coeff = e_a_ni / self.E_a[ni]
+            t_ni = np.zeros_like(self.K_1[:, ni])
             t_ni[0] = e_coeff
-            t_ni[1:] = self.K_1_ni[:-1] - self.a_ni[:-1] * e_coeff
-            M_ni = self.K_1_ni[-1] - self.a_ni[-1] * e_coeff
+            t_ni[1:] = self.K_1[:-1, ni] - self.a[:-1, ni] * e_coeff
+            M_ni = self.K_1[-1, ni] - self.a[-1, ni] * e_coeff
+            assert np.isscalar(M_ni)
 
-            self.E_a_ni = self.lambd_kalman * (self.E_a_ni + e_a_ni_sq / self.phi_ni)
+            self.E_a[ni] = self.lambd_kalman * (self.E_a[ni] + e_a_ni_sq / self.phi[ni])
+            assert np.isscalar(E_a[ni])
 
-            self.a_ni = self.a_ni + self.K_1_ni * np.conj(e_a_ni) / self.phi_ni
+            self.a[:, ni] = self.a[:, ni] + self.K_1[:, ni] * np.conj(e_a_ni) / self.phi[ni]
+            assert a[:, ni].shape == (self.K,)
 
-            e_b_ni = self.E_b_ni * M_ni
+            e_b_ni = self.E_b[ni] * M_ni
 
-            self.K_1_ni = t_ni + self.b_ni * M_ni
+            self.K_1[:, ni] = t_ni + self.b[:, ni] * M_ni
+            assert self.K_1[:, ni].shape == (self.K, )
 
-            self.phi_ni = phi_1_ni - np.conj(e_b_ni) * M_ni
+            self.phi[ni] = phi_1_ni - np.conj(e_b_ni) * M_ni
 
-            self.E_b_ni = self.lambd_kalman * (self.E_b_ni + np.pow(np.abs(e_b_ni), 2) / self.phi_ni)
+            self.E_b[ni] = self.lambd_kalman * (self.E_b[ni] + np.pow(np.abs(e_b_ni), 2) / self.phi[ni])
+            assert np.isscalar(E_b[ni])
 
-            self.b_ni = self.b_ni + self.K_1_ni * np.conj(e_b_ni) / self.phi_ni
+            self.b[:, ni] = self.b[:, ni] + self.K_1[:, ni] * np.conj(e_b_ni) / self.phi[ni]
 
-            K_ni = self.K_1_ni / self.phi_ni
+            K_ni = self.K_1[:, ni] / self.phi[ni]
+            assert K_ni.shape == (self.K, )
     
-            # K = K_ni...
+            K[ni, :] = K_ni
         return K
 
     def is_double_talk(self, loudspeaker_samples_block, microphone_samples_block):
@@ -106,8 +124,8 @@ class DoubleTalkDetector:
         self.S_prim = self.lambd * self.S_prim  + (1 - self.lambd) * hermitian(X) @ X
         assert self.S_prim.shape == (2 * self.L, 2 * self.L)
 
-        kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
-        # kalman_gain = self.kalman_gain()
+        # kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
+        kalman_gain = self.kalman_gain(X)
         assert kalman_gain.shape == (2 * self.L, 2 * self.N)
 
         zeros_y = np.vstack((np.zeros((self.N, 1)), microphone_samples_block))
