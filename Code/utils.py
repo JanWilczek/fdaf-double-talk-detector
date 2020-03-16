@@ -47,7 +47,7 @@ def generate_signals(noise_start_in_seconds=4.5, length_in_seconds=10):
 
     length_in_samples = int(length_in_seconds * rate)
 
-    return signal_microphone[:length_in_samples], signal_female[:length_in_samples], impulse_response, rate, near_end
+    return signal_microphone[:length_in_samples], signal_female[:length_in_samples], impulse_response, rate, near_end[:length_in_samples]
 
 def plot_signals(signal_microphone, signal_loudspeaker, impulse_response, signal_error, estimated_impulse_response, N):
     plt.figure()

@@ -5,12 +5,14 @@ import matplotlib.pyplot as plt
 import time
 
 
-def plot_results(signal_microphone, signal_loudspeaker, detector_output, detector_benchmark):
+def plot_results(signal_microphone, signal_noise, detector_output, detector_benchmark):
     plt.figure()
     plt.subplot(3,1,1)
-    plt.plot(signal_loudspeaker)
-    plt.subplot(3,1,2)
     plt.plot(signal_microphone)
+    plt.legend(['microphone signal'])
+    plt.subplot(3,1,2)
+    plt.plot(signal_noise)
+    plt.legend(['noise (double-talk) signal'])
     plt.subplot(3,1,3)
     plt.plot(detector_output)
     plt.plot(detector_benchmark)
@@ -28,7 +30,7 @@ def main():
     double_talk_threshold = 0.9
     dtd = DoubleTalkDetector(N, L, lambd, lambd_b, double_talk_threshold)
 
-    noise_power_threshold = 0.2    # power of noise block to account as active (for benchmark purposes only)
+    noise_power_threshold = 0.0015    # power of noise block to account as active (for benchmark purposes only)
 
     detector_output = np.zeros((len(signal_loudspeaker),))
     detector_benchmark = np.zeros_like(detector_output)
@@ -45,7 +47,8 @@ def main():
         speaker_block = signal_loudspeaker[i*N:(i+1)*N]
         noise_block = noise_signal[i*N:(i+1)*N]
         
-        if np.linalg.norm(noise_block, 2) / len(noise_block) > noise_power_threshold:
+        noise_block_power = np.linalg.norm(noise_block, 2) / len(noise_block)
+        if noise_block_power > noise_power_threshold:
             detector_benchmark[i*N:(i+1)*N] = np.ones((N,))
 
         if dtd.is_double_talk(speaker_block, mic_block):
@@ -55,7 +58,7 @@ def main():
         time_accumulator += end - start
         print(f'Average iteration time: {time_accumulator / (i+1)}')
 
-    plot_results(signal_microphone, signal_loudspeaker, detector_output, detector_benchmark)
+    plot_results(signal_microphone, noise_signal, detector_output, detector_benchmark)
 
 if __name__ == "__main__":
     main()

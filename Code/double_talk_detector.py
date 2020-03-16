@@ -44,9 +44,10 @@ class DoubleTalkDetector:
         self.var2_y = 0.0
 
         # Fast Kalman gain computation variables
+        delta = 1e-5
         self.a = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
-        self.phi = np.ones((2 * self.N,), dtype=complex)
-        self.E_a = np.ones((2 * self.N,), dtype=complex)
+        self.phi = delta * np.ones((2 * self.N,), dtype=complex)
+        self.E_a = delta * np.ones((2 * self.N,), dtype=complex)
         self.E_b = np.zeros((2 * self.N,), dtype=complex)
         self.K_1 = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
         self.lambd_kalman = 0.8 # What should its value be?
