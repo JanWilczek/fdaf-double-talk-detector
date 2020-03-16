@@ -44,13 +44,13 @@ class DoubleTalkDetector:
         self.var2_y = 0.0
 
         # Fast Kalman gain computation variables
-        self.a = np.zeros((self.K, 2 * self.N))
-        self.phi = np.zeros((2 * self.N))
-        self.E_a = np.zeros((2 * self.N))
-        self.E_b = np.zeros((2 * self.N))
-        self.K_1 = np.zeros((self.K, 2 * self.N))
+        self.a = np.zeros((self.K, 2 * self.N), dtype=complex)
+        self.phi = np.ones((2 * self.N,), dtype=complex)
+        self.E_a = np.ones((2 * self.N,), dtype=complex)
+        self.E_b = np.zeros((2 * self.N,), dtype=complex)
+        self.K_1 = np.zeros((self.K, 2 * self.N), dtype=complex)
         self.lambd_kalman = 0.8 # What should its value be?
-        self.b = np.zeros((self.K, @ * self.N))
+        self.b = np.zeros((self.K, 2 * self.N), dtype=complex)
 
     def enqueue_loudspeaker_block(self, new_samples_block):
         self.x_k.appendleft(new_samples_block)
@@ -94,10 +94,10 @@ class DoubleTalkDetector:
             assert np.isscalar(M_ni)
 
             self.E_a[ni] = self.lambd_kalman * (self.E_a[ni] + e_a_ni_sq / self.phi[ni])
-            assert np.isscalar(E_a[ni])
+            assert np.isscalar(self.E_a[ni])
 
             self.a[:, ni] = self.a[:, ni] + self.K_1[:, ni] * np.conj(e_a_ni) / self.phi[ni]
-            assert a[:, ni].shape == (self.K,)
+            assert self.a[:, ni].shape == (self.K,)
 
             e_b_ni = self.E_b[ni] * M_ni
 
@@ -106,15 +106,15 @@ class DoubleTalkDetector:
 
             self.phi[ni] = phi_1_ni - np.conj(e_b_ni) * M_ni
 
-            self.E_b[ni] = self.lambd_kalman * (self.E_b[ni] + np.pow(np.abs(e_b_ni), 2) / self.phi[ni])
-            assert np.isscalar(E_b[ni])
+            self.E_b[ni] = self.lambd_kalman * (self.E_b[ni] + np.power(np.abs(e_b_ni), 2) / self.phi[ni])
+            assert np.isscalar(self.E_b[ni])
 
             self.b[:, ni] = self.b[:, ni] + self.K_1[:, ni] * np.conj(e_b_ni) / self.phi[ni]
 
             K_ni = self.K_1[:, ni] / self.phi[ni]
             assert K_ni.shape == (self.K, )
     
-            K[ni, :] = K_ni
+            K[:, ni] = K_ni
         return K
 
     def is_double_talk(self, loudspeaker_samples_block, microphone_samples_block):
