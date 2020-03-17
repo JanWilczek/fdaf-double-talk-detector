@@ -44,7 +44,7 @@ class DoubleTalkDetector:
         self.var2_y = 0.0
 
         # Fast Kalman gain computation variables
-        delta = 1e-5
+        delta = 1.0
         self.a = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
         self.phi = delta * np.ones((2 * self.N,), dtype=complex)
         self.E_a = delta * np.ones((2 * self.N,), dtype=complex)
@@ -54,11 +54,11 @@ class DoubleTalkDetector:
         self.b = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
 
     def enqueue_loudspeaker_block(self, new_samples_block):
-        self.x_k.appendleft(new_samples_block)
+        self.x_k.appendleft(new_samples_block.reshape((self.N,)))
         self.x_k.pop()
         assert len(self.x_k) == self.K, f"Inappriopriate number of buffered blocks! Is {len(self.x_k)}, should be {self.K}."
 
-        x_2N = np.vstack((self.x_k[0], new_samples_block))
+        x_2N = np.hstack((self.x_k[1], self.x_k[0]))
         assert len(x_2N) == 2 * self.N
 
         # X_0_vec = self.F_2N @ x_2N
@@ -83,7 +83,7 @@ class DoubleTalkDetector:
             # assert X_ni.shape == (self.K,)
             assert X_ni.shape == (2 * self.L,)
 
-            e_a_ni = np.conj(X_ni[0]) - hermitian(self.a[:, ni]) @ hermitian(X_ni)
+            e_a_ni = np.conj(X_ni[0]) - hermitian(self.a[:, ni]) @ hermitian(X_ni)  # Here X_ni[0] should be a scalar, but it is only correct if X_ni is of 1xK size
             assert np.isscalar(e_a_ni)
             e_a_ni_sq = np.power(np.abs(e_a_ni), 2)
 
@@ -127,24 +127,25 @@ class DoubleTalkDetector:
         self.S_prim = self.lambd * self.S_prim  + (1 - self.lambd) * hermitian(X) @ X
         assert self.S_prim.shape == (2 * self.L, 2 * self.L)
 
-        # kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
-        kalman_gain = self.kalman_gain(X)
+        kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
+        # kalman_gain = self.kalman_gain(X)
         assert kalman_gain.shape == (2 * self.L, 2 * self.N)
 
         zeros_y = np.vstack((np.zeros((self.N, 1)), microphone_samples_block))
         assert zeros_y.shape == (2 * self.N, 1)
         # y_ = self.F_2N @ zeros_y
-        y_ = fft(zeros_y, axis=0)
+        y_ = fft(zeros_y, axis=0).reshape(-1)
+        assert y_.shape == (2 * self.N,)
 
         background_y_estimate = self.G_1 @ (X @ self.h_b)
-        error_b = np.subtract(y_.reshape(-1), background_y_estimate)
+        error_b = np.subtract(y_, background_y_estimate)
         assert error_b.shape == (2 * self.N,)
 
         self.h_b = self.h_b + 2 * (1 - self.lambd_b) * self.G_2 @ (kalman_gain @ error_b)
         assert self.h_b.shape == (2 * self.L,)
 
         for k in range(0, self.K):
-            self.s_k[k] = self.lambd_b * self.s_k[k] + (1 - self.lambd_b) * np.conj(self.X_k[k]) @ y_.reshape(-1)
+            self.s_k[k] = self.lambd_b * self.s_k[k] + (1 - self.lambd_b) * np.conj(self.X_k[k]) @ y_
             assert self.s_k[k].shape == (2 * self.N,)
 
         self.var2_y = (self.lambd_b * self.var2_y + (1 - self.lambd_b) * np.dot(hermitian(y_), y_)).item()
@@ -152,9 +153,9 @@ class DoubleTalkDetector:
 
         partial_sums = [np.dot(hermitian(self.h_b[2*self.N*k:2*self.N*(k+1)]), self.s_k[k]) for k in range(0, self.K)]
         dzeta_sq = sum(partial_sums) / self.var2_y
+        assert np.isscalar(dzeta_sq)
         dzeta = np.sqrt(dzeta_sq)
 
-        assert np.isscalar(dzeta)
 
         if dzeta < self.threshold:
             return True

@@ -14,20 +14,20 @@ def plot_results(signal_microphone, signal_noise, detector_output, detector_benc
     plt.plot(signal_noise)
     plt.legend(['noise (double-talk) signal'])
     plt.subplot(3,1,3)
-    plt.plot(detector_output)
+    plt.plot(0.5 * detector_output)
     plt.plot(detector_benchmark)
     plt.legend(['double-talk detection', 'double-talk active'])
     plt.show()
 
 
 def main():
-    signal_microphone, signal_loudspeaker, impulse_response, rate, noise_signal = generate_signals(noise_start_in_seconds=2, length_in_seconds=5)
-    N = 256
-    K = 8
+    signal_microphone, signal_loudspeaker, impulse_response, rate, noise_signal = generate_signals(noise_start_in_seconds=1, length_in_seconds=3)
+    N = 64
+    K = 150
     L = K * N
     lambd = 0.9
     lambd_b = 0.8   # the forgetting factor of the background filter should be smaller than that of the foreground filter
-    double_talk_threshold = 0.9
+    double_talk_threshold = 0.7
     dtd = DoubleTalkDetector(N, L, lambd, lambd_b, double_talk_threshold)
 
     noise_power_threshold = 0.0015    # power of noise block to account as active (for benchmark purposes only)
