@@ -50,7 +50,6 @@ class DoubleTalkDetector:
         self.E_a = delta * np.ones((2 * self.N,), dtype=complex)
         self.E_b = np.zeros((2 * self.N,), dtype=complex)
         self.K_1 = np.zeros((self.K, 2 * self.N), dtype=complex)
-        self.lambd_kalman = self.lambd
         self.b = np.zeros((self.K, 2 * self.N), dtype=complex)
 
     def enqueue_loudspeaker_block(self, new_samples_block):
@@ -79,9 +78,7 @@ class DoubleTalkDetector:
         K = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
         for ni in range(0, 2 * self.N):
             X_ni = X[ni, list(range(ni,2*self.L,2*self.N))]
-            # X_ni = X[ni, :]
             assert X_ni.shape == (self.K,)
-            # assert X_ni.shape == (2 * self.L,)
 
             e_a_ni = np.conj(X_ni[0]) - np.dot(hermitian(self.a[:, ni]), hermitian(X_ni))
             assert np.isscalar(e_a_ni)
@@ -96,7 +93,7 @@ class DoubleTalkDetector:
             M_ni = self.K_1[-1, ni] - self.a[-1, ni] * e_coeff
             assert np.isscalar(M_ni)
 
-            self.E_a[ni] = self.lambd_kalman * (self.E_a[ni] + e_a_ni_sq / self.phi[ni])
+            self.E_a[ni] = self.lambd * (self.E_a[ni] + e_a_ni_sq / self.phi[ni])
             assert np.isscalar(self.E_a[ni])
 
             self.a[:, ni] = self.a[:, ni] + self.K_1[:, ni] * np.conj(e_a_ni) / self.phi[ni]
@@ -109,7 +106,7 @@ class DoubleTalkDetector:
 
             self.phi[ni] = phi_1_ni - np.conj(e_b_ni) * M_ni
 
-            self.E_b[ni] = self.lambd_kalman * (self.E_b[ni] + np.power(np.abs(e_b_ni), 2) / self.phi[ni])
+            self.E_b[ni] = self.lambd * (self.E_b[ni] + np.power(np.abs(e_b_ni), 2) / self.phi[ni])
             assert np.isscalar(self.E_b[ni])
 
             self.b[:, ni] = self.b[:, ni] + self.K_1[:, ni] * np.conj(e_b_ni) / self.phi[ni]
@@ -117,7 +114,7 @@ class DoubleTalkDetector:
             K_ni = self.K_1[:, ni] / self.phi[ni]
             assert K_ni.shape == (self.K, )
     
-            for k in range(0, K):
+            for k in range(0, self.K):
                 diagonal_idx = ni + k * 2 * self.N
                 K[diagonal_idx, diagonal_idx] = K_ni[k]
         return K
@@ -158,7 +155,9 @@ class DoubleTalkDetector:
         assert np.isscalar(dzeta_sq)
         dzeta = np.sqrt(dzeta_sq)
 
-        if dzeta < self.threshold:
-            return True
-        else:
-            return False
+        return dzeta
+
+        # if dzeta < self.threshold:
+            # return True
+        # else:
+            # return False

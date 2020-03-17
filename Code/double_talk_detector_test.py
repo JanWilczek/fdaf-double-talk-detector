@@ -51,8 +51,7 @@ def main():
         if noise_block_power > noise_power_threshold:
             detector_benchmark[i*N:(i+1)*N] = np.ones((N,))
 
-        if dtd.is_double_talk(speaker_block, mic_block):
-            detector_output[i*N:(i+1)*N] = np.ones((N,))
+        detector_output[i*N:(i+1)*N] = dtd.is_double_talk(speaker_block, mic_block) * np.ones((N,))
 
         end = time.time()
         time_accumulator += end - start
