@@ -23,7 +23,7 @@ def plot_results(signal_microphone, signal_noise, detector_output, detector_benc
 def main():
     signal_microphone, signal_loudspeaker, impulse_response, rate, noise_signal = generate_signals(noise_start_in_seconds=1, length_in_seconds=3)
     N = 64
-    K = 150
+    K = 50
     L = K * N
     lambd = 0.9
     lambd_b = 0.8   # the forgetting factor of the background filter should be smaller than that of the foreground filter
