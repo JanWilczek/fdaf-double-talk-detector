@@ -27,7 +27,7 @@ class DoubleTalkDetector:
         for k in range(0, self.K):
             self.x_k.append(np.zeros((N, )))
             self.X_k.append(np.zeros((2 * self.N, 2 * self.N), dtype=complex))
-        self.S_prim = 0.0005 * np.eye(2*N * self.K, dtype=complex) # regularized to make S_prim invertible in the first iteration
+        self.S_prim = np.eye(2*N * self.K, dtype=complex) # regularized to make S_prim invertible in the first iteration
         self.W_1 = np.zeros((2*N, 2*N))
         self.W_1[N:2*N, N:2*N] = np.eye(N)
         self.W_2 = np.zeros((2*N, 2*N))
@@ -50,7 +50,7 @@ class DoubleTalkDetector:
         self.E_a = delta * np.ones((2 * self.N,), dtype=complex)
         self.E_b = np.zeros((2 * self.N,), dtype=complex)
         self.K_1 = np.zeros((self.K, 2 * self.N), dtype=complex)
-        self.lambd_kalman = 0.8 # What should its value be?
+        self.lambd_kalman = self.lambd
         self.b = np.zeros((self.K, 2 * self.N), dtype=complex)
 
     def enqueue_loudspeaker_block(self, new_samples_block):
@@ -117,7 +117,9 @@ class DoubleTalkDetector:
             K_ni = self.K_1[:, ni] / self.phi[ni]
             assert K_ni.shape == (self.K, )
     
-            K[:, ni] = K_ni # ???
+            for k in range(0, K):
+                diagonal_idx = ni + k * 2 * self.N
+                K[diagonal_idx, diagonal_idx] = K_ni[k]
         return K
 
     def is_double_talk(self, loudspeaker_samples_block, microphone_samples_block):
@@ -127,8 +129,8 @@ class DoubleTalkDetector:
         self.S_prim = self.lambd * self.S_prim  + (1 - self.lambd) * hermitian(X) @ X
         assert self.S_prim.shape == (2 * self.L, 2 * self.L)
 
-        kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
-        # kalman_gain = self.kalman_gain(X)
+        # kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
+        kalman_gain = self.kalman_gain(X)
         assert kalman_gain.shape == (2 * self.L, 2 * self.N)
 
         zeros_y = np.vstack((np.zeros((self.N, 1)), microphone_samples_block))
@@ -155,7 +157,6 @@ class DoubleTalkDetector:
         dzeta_sq = sum(partial_sums) / self.var2_y
         assert np.isscalar(dzeta_sq)
         dzeta = np.sqrt(dzeta_sq)
-
 
         if dzeta < self.threshold:
             return True
