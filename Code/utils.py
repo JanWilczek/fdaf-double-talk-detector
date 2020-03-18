@@ -68,3 +68,13 @@ def plot_signals(signal_microphone, signal_loudspeaker, impulse_response, signal
     plt.legend(['h', '$\hat{h}$'])
     plt.title('h, h_hat - MSE: ' + str(np.sum(np.square(impulse_response[:N] - estimated_impulse_response))))
     plt.show()
+
+def dft_matrix(size):
+    F = np.zeros((size, size), dtype=complex)
+    for nu in range(0, size):
+        for n in range(0, size):
+            F[nu, n] = np.exp(- 1j * 2 * np.pi * nu * n / size)
+    return F
+
+def hermitian(matrix):
+    return np.conj(np.transpose(matrix))

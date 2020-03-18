@@ -1,16 +1,8 @@
 from collections import deque
 import numpy as np
 from numpy.fft import fft, ifft
+from utils import dft_matrix, hermitian
 
-def dft_matrix(size):
-    F = np.zeros((size, size), dtype=complex)
-    for nu in range(0, size):
-        for n in range(0, size):
-            F[nu, n] = np.exp(- 1j * 2 * np.pi * nu * n / size)
-    return F
-
-def hermitian(matrix):
-    return np.conj(np.transpose(matrix))
 
 class DoubleTalkDetector:
     def __init__(self, N, L, lambd, lambd_b):
@@ -59,7 +51,6 @@ class DoubleTalkDetector:
         x_2N = np.hstack((self.x_k[1], self.x_k[0]))
         assert len(x_2N) == 2 * self.N
 
-        # X_0_vec = self.F_2N @ x_2N
         X_0_vec = fft(x_2N, axis=0)
         X_0 = np.diag(X_0_vec.reshape(-1))
         assert X_0.shape == (2*self.N, 2*self.N)
@@ -123,7 +114,7 @@ class DoubleTalkDetector:
         """
         Returns
         -------
-        dzeta       decision variable in range [0, 1]. If close to 1: no double-talk. Else: double-talk active.
+        xi       decision variable in range [0, 1]. If close to 1: no double-talk. Else: double-talk active.
         """
         self.enqueue_loudspeaker_block(loudspeaker_samples_block)
 
@@ -137,7 +128,7 @@ class DoubleTalkDetector:
 
         zeros_y = np.vstack((np.zeros((self.N, 1)), microphone_samples_block))
         assert zeros_y.shape == (2 * self.N, 1)
-        # y_ = self.F_2N @ zeros_y
+
         y_ = fft(zeros_y, axis=0).reshape(-1)
         assert y_.shape == (2 * self.N,)
 
@@ -148,6 +139,12 @@ class DoubleTalkDetector:
         self.h_b = self.h_b + 2 * (1 - self.lambd_b) * self.G_2 @ (kalman_gain @ error_b)
         assert self.h_b.shape == (2 * self.L,)
 
+        # Filter coefficients constraint (to avoid circular convolution artifacts)
+        for k in range(0, self.K):
+            h = ifft(self.h_b[k * 2 * self.N:(k+1) * 2 * self.N])
+            h[self.N:] = 0.0
+            self.h_b[k * 2 * self.N:(k+1) * 2 * self.N] = fft(h)
+
         for k in range(0, self.K):
             self.s_k[k] = self.lambd_b * self.s_k[k] + (1 - self.lambd_b) * np.conj(self.X_k[k]) @ y_
             assert self.s_k[k].shape == (2 * self.N,)
@@ -156,12 +153,12 @@ class DoubleTalkDetector:
         assert np.isscalar(self.var2_y)
 
         partial_sums = [np.dot(hermitian(self.h_b[2*self.N*k:2*self.N*(k+1)]), self.s_k[k]) for k in range(0, self.K)]
-        dzeta_sq = sum(partial_sums) / self.var2_y
-        assert np.isscalar(dzeta_sq)
+        xi_sq = sum(partial_sums) / self.var2_y
+        assert np.isscalar(xi_sq)
 
-        # assert np.imag(dzeta_sq) == 0 # Not true, unfortunately
+        # assert np.imag(xi_sq) == 0 # Not true, unfortunately
 
-        dzeta_sq = np.abs(dzeta_sq) # WARNING: Absolute value is added by me.
-        dzeta = np.sqrt(dzeta_sq)
+        xi_sq = np.abs(xi_sq) # WARNING: Absolute value is added by me.
+        xi = np.sqrt(xi_sq)
 
-        return dzeta
+        return xi
