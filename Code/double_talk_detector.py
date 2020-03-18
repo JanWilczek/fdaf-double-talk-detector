@@ -5,33 +5,32 @@ from utils import dft_matrix, hermitian
 
 
 class DoubleTalkDetector:
-    def __init__(self, N, L, lambd, lambd_b):
-        self.lambd = lambd
-        self.lambd_b = lambd_b
-        self.N = N
-        self.F_2N = dft_matrix(2 * N)
-        self.L = L
-        assert L // N == L / N, "Filter's length is not divisible by block's length!"
-        self.K = L // N
+    def __init__(self, block_length, nb_blocks_per_filter, forgetting_factor, background_filter_forgetting_factor):
+        self.lambd = forgetting_factor
+        self.lambd_b = background_filter_forgetting_factor
+        self.N = block_length
+        self.F_2N = dft_matrix(2 * self.N)
+        self.K = nb_blocks_per_filter
+        self.L = self.K * self.N
         self.x_k = deque()   # buffered sample blocks
         self.X_k = deque()   # buffered DFTs of sample blocks as matrices' diagonals
         for k in range(0, self.K):
-            self.x_k.append(np.zeros((N, )))
+            self.x_k.append(np.zeros((self.N, )))
             self.X_k.append(np.zeros((2 * self.N, 2 * self.N), dtype=complex))
-        self.S_prim = np.eye(2*N * self.K, dtype=complex) # regularized to make S_prim invertible in the first iteration
-        self.W_1 = np.zeros((2*N, 2*N))
-        self.W_1[N:2*N, N:2*N] = np.eye(N)
-        self.W_2 = np.zeros((2*N, 2*N))
-        self.W_2[0:N, 0:N] = np.eye(N)
+        self.S_prim = np.eye(2*self.N * self.K, dtype=complex) # regularized to make S_prim invertible in the first iteration
+        self.W_1 = np.zeros((2*self.N, 2*self.N))
+        self.W_1[self.N:2*self.N, self.N:2*self.N] = np.eye(self.N)
+        self.W_2 = np.zeros((2*self.N, 2*self.N))
+        self.W_2[0:self.N, 0:self.N] = np.eye(self.N)
         self.G_1 = self.F_2N @ self.W_1 @ np.linalg.inv(self.F_2N)
         self.G_2_tilde = self.F_2N @ self.W_2 @ np.linalg.inv(self.F_2N)
-        self.G_2 = np.zeros((2*L, 2*L), dtype=complex)
+        self.G_2 = np.zeros((2*self.L, 2*self.L), dtype=complex)
         for k in range(0, self.K):
-            self.G_2[k*2*N:(k+1)*2*N,k*2*N:(k+1)*2*N] = self.G_2_tilde # place G_2_tilde along the diagonal of G_2
-        self.h_b = np.zeros((2*L, ))
+            self.G_2[k*2*self.N:(k+1)*2*self.N,k*2*self.N:(k+1)*2*self.N] = self.G_2_tilde # place G_2_tilde along the diagonal of G_2
+        self.h_b = np.zeros((2*self.L, ))
         self.s_k = []
         for k in range(0, self.K):
-            self.s_k.append(np.zeros((2 * N,)))
+            self.s_k.append(np.zeros((2 * self.N,)))
         self.var2_y = 0.0
 
         # Fast Kalman gain computation variables

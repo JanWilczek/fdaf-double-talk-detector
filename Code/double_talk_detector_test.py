@@ -23,10 +23,9 @@ def main():
     signal_microphone, signal_loudspeaker, _, _, noise_signal = generate_signals(noise_start_in_seconds=1, length_in_seconds=3)
     N = 256
     K = 5
-    L = K * N
     lambd = 0.8
     lambd_b = 0.7   # the forgetting factor of the background filter should be smaller than that of the foreground filter
-    dtd = DoubleTalkDetector(N, L, lambd, lambd_b)
+    dtd = DoubleTalkDetector(N, K, lambd, lambd_b)
 
     noise_power_threshold = 0.0015    # power of noise block to account as active (for benchmark purposes only)
 

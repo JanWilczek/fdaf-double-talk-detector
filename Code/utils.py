@@ -43,15 +43,15 @@ def get_shifted_blocks(x,M,S):
     N = M//S
 
     #number of missing 0s from X
-    n0 = ((( (L//M + 1) * M) ) - L) % M
+    nb_blocks = L//M + 1
+    n0 = (nb_blocks * M - L) % M
     #pad with n0 0's
 
     x = np.pad(x,((0,n0),(0,0)), 'constant')
 
-    L = len(x)
     Nb = L//M
 
-    x = np.reshape(x,(Nb*N,M//N))
+    x = np.reshape(x,(nb_blocks*N,M//N))
 
     x_ = np.zeros((N*Nb,M))
     for i in range(N*Nb-1):
@@ -74,19 +74,15 @@ def generate_microphone_signal(signal_loudspeaker, signal_noise, impulse_respons
     signal_microphone = reshaped_to_1d(signal_microphone)
     signal_microphone = signal_microphone[0:len(signal_loudspeaker)]
 
-
     near_end = np.zeros_like(signal_microphone)
     near_end[noise_start_samples:min(noise_start_samples+len(signal_noise),len(near_end))] = signal_noise[:min(len(signal_noise), len(near_end) - noise_start_samples)]
 
     signal_microphone += near_end
-    # signal_microphone /= np.max(np.abs(signal_microphone))
+    signal_microphone /= np.max(np.abs(signal_microphone))
 
     return signal_microphone, near_end
 
-def generate_signals(h=none, noise_start_in_seconds=4.5, length_in_seconds=10):
-=======
-def generate_signals(h=None):
->>>>>>> master
+def generate_signals(h=None, noise_start_in_seconds=4.5, length_in_seconds=10):
     """
     Returns
     -------
