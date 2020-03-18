@@ -39,7 +39,7 @@ def main():
 
     nb_iterations = len(signal_loudspeaker) // N
     for i in range(0, nb_iterations):
-        print(f'Iteration {i} out of {nb_iterations-1}')
+        print(f'Iteration {i+1} out of {nb_iterations}')
 
         start = time.time()
 

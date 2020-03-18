@@ -13,10 +13,9 @@ def hermitian(matrix):
     return np.conj(np.transpose(matrix))
 
 class DoubleTalkDetector:
-    def __init__(self, N, L, lambd, lambd_b, threshold):
+    def __init__(self, N, L, lambd, lambd_b):
         self.lambd = lambd
         self.lambd_b = lambd_b
-        self.threshold = threshold
         self.N = N
         self.F_2N = dft_matrix(2 * N)
         self.L = L
@@ -76,6 +75,7 @@ class DoubleTalkDetector:
 
     def kalman_gain(self, X):
         K = np.zeros((2 * self.L, 2 * self.N), dtype=complex)
+        K_ni = np.zeros((self.K, 2 * self.N), dtype=complex)
         for ni in range(0, 2 * self.N):
             X_ni = X[ni, list(range(ni,2*self.L,2*self.N))]
             assert X_ni.shape == (self.K,)
@@ -111,15 +111,20 @@ class DoubleTalkDetector:
 
             self.b[:, ni] = self.b[:, ni] + self.K_1[:, ni] * np.conj(e_b_ni) / self.phi[ni]
 
-            K_ni = self.K_1[:, ni] / self.phi[ni]
-            assert K_ni.shape == (self.K, )
+            K_ni[:, ni] = self.K_1[:, ni] / self.phi[ni]
+            assert K_ni[:, ni].shape == (self.K, )
     
-            for k in range(0, self.K):
-                diagonal_idx = ni + k * 2 * self.N
-                K[diagonal_idx, diagonal_idx] = K_ni[k]
+        for k in range(0, self.K):
+            K[k * 2 * self.N:(k+1) * 2 * self.N, :] = np.diag(K_ni[k, :])
+
         return K
 
     def is_double_talk(self, loudspeaker_samples_block, microphone_samples_block):
+        """
+        Returns
+        -------
+        dzeta       decision variable in range [0, 1]. If close to 1: no double-talk. Else: double-talk active.
+        """
         self.enqueue_loudspeaker_block(loudspeaker_samples_block)
 
         X = self.X()
@@ -153,11 +158,10 @@ class DoubleTalkDetector:
         partial_sums = [np.dot(hermitian(self.h_b[2*self.N*k:2*self.N*(k+1)]), self.s_k[k]) for k in range(0, self.K)]
         dzeta_sq = sum(partial_sums) / self.var2_y
         assert np.isscalar(dzeta_sq)
+
+        # assert np.imag(dzeta_sq) == 0 # Not true, unfortunately
+
+        dzeta_sq = np.abs(dzeta_sq) # WARNING: Absolute value is added by me.
         dzeta = np.sqrt(dzeta_sq)
 
         return dzeta
-
-        # if dzeta < self.threshold:
-            # return True
-        # else:
-            # return False
