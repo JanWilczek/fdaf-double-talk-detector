@@ -122,8 +122,8 @@ class DoubleTalkDetector:
         self.S_prim = self.lambd * self.S_prim  + (1 - self.lambd) * hermitian(X) @ X
         assert self.S_prim.shape == (2 * self.L, 2 * self.L)
 
-        # kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)
-        kalman_gain = self.kalman_gain(X)
+        # kalman_gain = np.linalg.inv(self.S_prim) @ hermitian(X)   # Original implementation
+        kalman_gain = self.kalman_gain(X)                           # Fast implementation
         assert kalman_gain.shape == (2 * self.L, 2 * self.N)
 
         zeros_y = np.vstack((np.zeros((self.N, 1)), microphone_samples_block))
