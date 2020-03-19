@@ -25,7 +25,7 @@ def main():
     K = 5
     lambd = 0.8
     lambd_b = 0.7   # the forgetting factor of the background filter should be smaller than that of the foreground filter
-    dtd = DoubleTalkDetector(N, K, lambd, lambd_b)
+    dtd = DoubleTalkDetector(N, K, lambd, lambd_b, fast_kalman=False)
 
     noise_power_threshold = 0.0015    # power of noise block to account as active (for benchmark purposes only)
 

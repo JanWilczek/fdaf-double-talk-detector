@@ -49,7 +49,7 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
     d : ndarray
         Near end signal a.k.a. microphone signal
     M : int
-        Number of blocks.
+        Block size
     S : int
         Number of shifts.
     alpha: number
