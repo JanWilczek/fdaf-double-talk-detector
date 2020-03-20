@@ -93,8 +93,6 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
             do_not_adapt = (freeze_index[:,0]<=i*M).any() \
                             and (i*M<freeze_index[:,1]).any()
         
-        ### AND THAT'S IT
-
         Y = H@Xm
         yk = (k@(fft.ifft(Y).T)).real
         y[S*(i+1):S*(i+2)] = yk

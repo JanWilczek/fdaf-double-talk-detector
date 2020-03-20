@@ -2,6 +2,7 @@ from collections import deque
 import numpy as np
 from numpy.fft import fft, ifft
 from utils import dft_matrix, hermitian
+import matplotlib.pyplot as plt
 
 
 class DoubleTalkDetector:
@@ -13,13 +14,14 @@ class DoubleTalkDetector:
         self.F_2N = dft_matrix(2 * self.N)
         self.K = nb_blocks_per_filter
         self.L = self.K * self.N
-        self.x_k = deque()   # buffered sample blocks
+        # self.x_k = deque()   # buffered sample blocks
         self.X_k = deque()   # buffered DFTs of sample blocks as matrices' diagonals
-        for i in range(2):
-            self.x_k.append(np.zeros((self.N, 1)))
+        # for i in range(2):
+            # self.x_k.append(np.zeros((self.N, 1)))
+        self.previous_loudspeaker_samples = np.zeros((self.N, 1))
         for k in range(0, self.K):
             self.X_k.append(np.zeros((2 * self.N, 2 * self.N), dtype=complex))
-        self.S_prim = np.eye(2*self.N * self.K, dtype=complex) # regularized to make S_prim invertible in the first iteration
+        self.S_prim = 0.0015 * np.eye(2*self.N * self.K, dtype=complex) # regularized to make S_prim invertible in the first iteration
         self.W_1 = np.zeros((2*self.N, 2*self.N))
         self.W_1[self.N:2*self.N, self.N:2*self.N] = np.eye(self.N)
         self.W_2 = np.zeros((2*self.N, 2*self.N))
@@ -46,11 +48,12 @@ class DoubleTalkDetector:
     def enqueue_loudspeaker_block(self, new_samples_block):
         assert new_samples_block.shape == (self.N, 1)
 
-        self.x_k.appendleft(new_samples_block)
-        self.x_k.pop()
-        assert len(self.x_k) == 2, f"Inappriopriate number of buffered blocks! Is {len(self.x_k)}, should be 2."
+        # self.x_k.appendleft(new_samples_block)
+        # self.x_k.pop()
+        # assert len(self.x_k) == 2, f"Inappriopriate number of buffered blocks! Is {len(self.x_k)}, should be 2."
 
-        x_2N = np.vstack((self.x_k[1], self.x_k[0]))
+        # x_2N = np.vstack((self.x_k[1], self.x_k[0]))
+        x_2N = np.vstack((self.previous_loudspeaker_samples, new_samples_block))
         assert x_2N.shape == (2 * self.N, 1)
 
         X_0_vec = fft(x_2N, axis=0)
@@ -60,10 +63,12 @@ class DoubleTalkDetector:
         self.X_k.appendleft(X_0)
         self.X_k.pop()
 
+        self.previous_loudspeaker_samples = new_samples_block
+
     def X(self):
         X = np.zeros((2 * self.N, 2 * self.N * self.K), dtype=complex)
         for k in range(0, self.K):
-            X[:, k * 2 * self.N:(k+1) * 2 * self.N] = self.X_k[k]
+            X [:,k * 2 * self.N:(k+1) * 2 * self.N] = self.X_k[k]
         assert X.shape == (2 * self.N, 2 * self.L)
         return X
 
@@ -118,7 +123,7 @@ class DoubleTalkDetector:
 
         return K
 
-    def is_double_talk(self, loudspeaker_samples_block, microphone_samples_block):
+    def is_double_talk(self, loudspeaker_samples_block, microphone_samples_block, show_debug_plot=False):
         """
         Returns
         -------
@@ -127,6 +132,10 @@ class DoubleTalkDetector:
         self.enqueue_loudspeaker_block(loudspeaker_samples_block)
 
         X = self.X()
+        
+        if show_debug_plot:
+            plt.matshow(np.abs(X))
+            plt.show()
 
         if self.fast_kalman:
             kalman_gain = self.kalman_gain(X)   # Fast implementation
@@ -151,26 +160,19 @@ class DoubleTalkDetector:
         self.h_b = self.h_b + 2 * (1 - self.lambd_b) * self.G_2 @ (kalman_gain @ error_b)
         assert self.h_b.shape == (2 * self.L, 1)
 
-        # Filter coefficients constraint (to avoid circular convolution artifacts)
-        for k in range(0, self.K):
-            h = ifft(self.h_b[k * 2 * self.N:(k+1) * 2 * self.N, 0], axis=0)
-            assert h.shape == (2 * self.N,)
-            h[self.N:] = np.zeros((self.N,))
-            self.h_b[k * 2 * self.N:(k+1) * 2 * self.N, 0] = fft(h, axis=0)
-
         for k in range(0, self.K):
             self.s_k[k] = self.lambd_b * self.s_k[k] + (1 - self.lambd_b) * np.conj(self.X_k[k]) @ y_
             assert self.s_k[k].shape == (2 * self.N, 1)
 
-        self.var2_y = (self.lambd_b * self.var2_y + (1 - self.lambd_b) * np.dot(hermitian(y_), y_)).item()
+        self.var2_y = self.lambd_b * self.var2_y + (1 - self.lambd_b) * (hermitian(y_) @ y_).item()
         assert np.isscalar(self.var2_y)
+        assert np.imag(self.var2_y) == 0
 
-        partial_sums = [(hermitian(self.h_b[2*self.N*k:2*self.N*(k+1), 0]) @ self.s_k[k]).item() for k in range(0, self.K)]
-        xi_sq = sum(partial_sums) / self.var2_y
+        partial_sums = [np.abs((hermitian(self.h_b[2*self.N*k:2*self.N*(k+1), 0]) @ self.s_k[k]).item()) for k in range(0, self.K)]
+        xi_sq = sum(partial_sums) / np.real(self.var2_y)
         assert np.isscalar(xi_sq)
-        # assert np.imag(xi_sq) == 0 # Not true, unfortunately
+        assert np.imag(xi_sq) == 0
 
-        xi_sq = np.abs(xi_sq) # WARNING: Absolute value is added by me.
         xi = np.sqrt(xi_sq)
 
         return xi
