@@ -38,7 +38,7 @@ def BFDF(X,H,S):
 
     return y.real
 
-def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_threshold=0.5, freeze_index=None):
+def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_threshold=0.5, freeze_index=None, rate=16000):
     """
     A Frequency-domain adaptive filter based on overlap-add method.
 
@@ -58,7 +58,8 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
         Regularization parameter
     double_talk_threshold: number
         Determines the threshold for the xi value below which double-talk is detected
-
+    rate: number
+        Sampling rate
     Returns (yields)
     ----------
     W : filter
@@ -119,12 +120,5 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
 
         H = H + H_upd.T
 
-        print('Block: ', i)
+        print('Block: ', i, 'seconds:', i*M/rate, ' to', (i+1)*S/rate)
     return e, y, H, p
-
-#to be removed
-def NLMS(x, d, N, alpha, delta, freeze_index=None):
-    error = 0
-    h_hat = 0
-    return error, h_hat
-

@@ -108,23 +108,42 @@ def generate_signals(h=None, noise_start_in_seconds=4.5, length_in_seconds=10):
     return signal_microphone[:length_in_samples], signal_female[:length_in_samples], impulse_response, rate, near_end[:length_in_samples]
 
 def plot_signals(signal_microphone, signal_loudspeaker, impulse_response, signal_error, estimated_impulse_response, N):
-    plt.figure()
-    ax = plt.subplot(4, 1, 1)
+    """
+    signal_microphone:
+    signal_loudspeaker:
+    impulse_response:
+    signal_error:
+    estimated_impulse_response:
+    N: filter length
+    """
+    plt.figure(figsize=(7,7))
+    n_of_plots = 3 if signal_error is None else 4
+    
+    plt.subplot(n_of_plots, 1, 1)
     plt.plot(signal_microphone)
     plt.title('signal_microphone')
     plt.ylim([-1, 1])
-    plt.subplot(4, 1, 2, sharex=ax)
+    
+    plt.subplot(n_of_plots, 1, 2)
     plt.plot(signal_loudspeaker)
     plt.title('signal_loudspeaker')
     plt.ylim([-1, 1])
-    plt.subplot(4, 1, 3, sharex=ax)
-    plt.plot(signal_error)
-    plt.title('signal_error')
-    plt.subplot(4, 1, 4)
+
+    plt.subplot(n_of_plots, 1, 3)
     plt.plot(impulse_response)
-    plt.plot(estimated_impulse_response)
+    if n_of_plots == 4:
+        plt.plot(estimated_impulse_response)
+        plt.title('h, $\hat{h}$ - MSE: ' + str(np.sum(np.square(impulse_response[:N] - estimated_impulse_response))))
+    else:
+        plt.title('Impulse Response (h)')
     plt.legend(['h', '$\hat{h}$'])
-    plt.title('h, h_hat - MSE: ' + str(np.sum(np.square(impulse_response[:N] - estimated_impulse_response))))
+    
+    if n_of_plots== 4:
+        plt.subplot(n_of_plots, 1, 4)
+        plt.plot(signal_error)
+        plt.title('signal_error')
+    
+    plt.tight_layout(pad=1.2)
     plt.show()
 
 def dft_matrix(size):
