@@ -1,8 +1,9 @@
-from utils import generate_signals
-from double_talk_detector import DoubleTalkDetector
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from utils import generate_signals
+from emdf_double_talk_detector import EMDFDoubleTalkDetector
+from coherence_double_talk_detector import CoherenceDoubleTalkDetector
 
 
 def plot_results(signal_microphone, signal_noise, detector_output, detector_benchmark):
@@ -21,11 +22,13 @@ def plot_results(signal_microphone, signal_noise, detector_output, detector_benc
 
 def main():
     signal_microphone, signal_loudspeaker, _, _, noise_signal = generate_signals(noise_start_in_seconds=1.0, length_in_seconds=3.0)
+    print(signal_microphone.shape, signal_loudspeaker.shape, noise_signal.shape)
     N = 256
     K = 5
     lambd = 0.9
     lambd_b = 0.8   # the forgetting factor of the background filter should be smaller than that of the foreground filter
-    dtd = DoubleTalkDetector(N, K, lambd, lambd_b, fast_kalman=True)
+    # dtd = EMDFDoubleTalkDetector(N, K, lambd, lambd_b, fast_kalman=True)
+    dtd = CoherenceDoubleTalkDetector(block_size=N)
 
     noise_power_threshold = 0.0015    # power of noise block to account as active (for benchmark purposes only)
 
@@ -43,12 +46,13 @@ def main():
         mic_block = signal_microphone[i*N:(i+1)*N]
         speaker_block = signal_loudspeaker[i*N:(i+1)*N]
         noise_block = noise_signal[i*N:(i+1)*N]
-        
+
         noise_block_power = np.linalg.norm(noise_block, 2) / len(noise_block)
         if noise_block_power > noise_power_threshold:
             detector_benchmark[i*N:(i+1)*N] = np.ones((N,))
 
-        detector_output[i*N:(i+1)*N] = dtd.is_double_talk(speaker_block, mic_block) * np.ones((N,))
+        # detector_output[i*N:(i+1)*N] = dtd.is_double_talk(speaker_block, mic_block, show_debug_plot=(i % 100 == 0)) * np.ones((N,))
+        detector_output[i*N:(i+1)*N] = dtd.is_double_talk(speaker_block, mic_block, speaker_block) * np.ones((N,))
 
         end = time.time()
         time_accumulator += end - start

@@ -1,11 +1,16 @@
 from collections import deque
 import numpy as np
-from numpy.fft import fft, ifft
+from numpy.fft import fft
 from utils import dft_matrix, hermitian
 import matplotlib.pyplot as plt
 
 
-class DoubleTalkDetector:
+class EMDFDoubleTalkDetector:
+    """
+        Double-talk detector based on Robust Extended Multidelay Filtering.
+        
+        Not working. Fast Kalman gain computation fails and the algorithm itself is unstable.
+    """
     def __init__(self, block_length, nb_blocks_per_filter, forgetting_factor, background_filter_forgetting_factor, fast_kalman=True):
         self.lambd = forgetting_factor
         self.lambd_b = background_filter_forgetting_factor
@@ -14,11 +19,8 @@ class DoubleTalkDetector:
         self.F_2N = dft_matrix(2 * self.N)
         self.K = nb_blocks_per_filter
         self.L = self.K * self.N
-        # self.x_k = deque()   # buffered sample blocks
-        self.X_k = deque()   # buffered DFTs of sample blocks as matrices' diagonals
-        # for i in range(2):
-            # self.x_k.append(np.zeros((self.N, 1)))
         self.previous_loudspeaker_samples = np.zeros((self.N, 1))
+        self.X_k = deque()   # buffered DFTs of sample blocks as matrices' diagonals
         for k in range(0, self.K):
             self.X_k.append(np.zeros((2 * self.N, 2 * self.N), dtype=complex))
         self.S_prim = 0.0015 * np.eye(2*self.N * self.K, dtype=complex) # regularized to make S_prim invertible in the first iteration
@@ -48,11 +50,6 @@ class DoubleTalkDetector:
     def enqueue_loudspeaker_block(self, new_samples_block):
         assert new_samples_block.shape == (self.N, 1)
 
-        # self.x_k.appendleft(new_samples_block)
-        # self.x_k.pop()
-        # assert len(self.x_k) == 2, f"Inappriopriate number of buffered blocks! Is {len(self.x_k)}, should be 2."
-
-        # x_2N = np.vstack((self.x_k[1], self.x_k[0]))
         x_2N = np.vstack((self.previous_loudspeaker_samples, new_samples_block))
         assert x_2N.shape == (2 * self.N, 1)
 
@@ -132,10 +129,6 @@ class DoubleTalkDetector:
         self.enqueue_loudspeaker_block(loudspeaker_samples_block)
 
         X = self.X()
-        
-        if show_debug_plot:
-            plt.matshow(np.abs(X))
-            plt.show()
 
         if self.fast_kalman:
             kalman_gain = self.kalman_gain(X)   # Fast implementation
@@ -174,5 +167,9 @@ class DoubleTalkDetector:
         assert np.imag(xi_sq) == 0
 
         xi = np.sqrt(xi_sq)
+
+        if show_debug_plot:
+            plt.matshow(np.abs(kalman_gain))
+            plt.show()
 
         return xi

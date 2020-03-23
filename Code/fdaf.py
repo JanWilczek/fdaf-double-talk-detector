@@ -5,7 +5,7 @@ import scipy.signal as sig
 import scipy.fft as fft
 
 from utils import * 
-from double_talk_detector import DoubleTalkDetector
+from coherence_double_talk_detector import CoherenceDoubleTalkDetector
 
 
 def BFDF(X,H,S):
@@ -81,23 +81,23 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
     kp[:,:S] = 1
     g = np.diagflat(kp)
 
-    dtd = DoubleTalkDetector(block_length=S, nb_blocks_per_filter=3, forgetting_factor=alpha, background_filter_forgetting_factor=alpha-0.1)
+    dtd = CoherenceDoubleTalkDetector(block_length=S)
 
     for i in range(len(X)-3): #per block
 
         Xm = np.diagflat(X[i,:])
-        
-        if freeze_index is None:
-            do_not_adapt = dtd.is_double_talk(x[S*(i+1):S*(i+2)], d[S*(i+1):S*(i+2)]) < double_talk_threshold
-        else:
-            do_not_adapt = (freeze_index[:,0]<=i*M).any() \
-                            and (i*M<freeze_index[:,1]).any()
-        
+
         Y = H@Xm
         yk = (k@(fft.ifft(Y).T)).real
         y[S*(i+1):S*(i+2)] = yk
         e[S*(i+1):S*(i+2)] = d[S*(i+1):S*(i+2)] - yk
 
+        if freeze_index is None:
+            do_not_adapt = dtd.is_double_talk(x[S*(i+1):S*(i+2)], d[S*(i+1):S*(i+2)], y[S*(i+1):S*(i+2)])
+        else:
+            do_not_adapt = (freeze_index[:,0]<=i*M).any() \
+                            and (i*M<freeze_index[:,1]).any()
+        
         if do_not_adapt:
             continue
 
