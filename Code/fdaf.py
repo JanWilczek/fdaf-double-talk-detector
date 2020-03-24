@@ -5,7 +5,7 @@ import scipy.signal as sig
 import scipy.fft as fft
 
 from utils import * 
-from double_talk_detector import DoubleTalkDetector
+from coherence_double_talk_detector import CoherenceDoubleTalkDetector
 
 
 def BFDF(X,H,S):
@@ -38,7 +38,7 @@ def BFDF(X,H,S):
 
     return y.real
 
-def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_threshold=0.5, freeze_index=None, rate=16000):
+def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, open_loop_threshold=0.8, closed_loop_threshold=0.95, freeze_index=None, rate=16000):
     """
     A Frequency-domain adaptive filter based on overlap-add method.
 
@@ -56,10 +56,16 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
         The forgetting factor
     delta: number
         Regularization parameter
-    double_talk_threshold: number
-        Determines the threshold for the xi value below which double-talk is detected
+    mu: number
+        step size
+    open_loop_threshold: number
+        Determines the threshold for the open-loop coherence value below which double-talk is detected
+    closed_loop_threshold: number
+        Determines the threshold for the closed-loop coherence value below which double-talk is detected. Should be higher
+        than its open-loop equivalent.
     rate: number
         Sampling rate
+
     Returns (yields)
     ----------
     W : filter
@@ -82,24 +88,31 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
     kp[:,:S] = 1
     g = np.diagflat(kp)
 
-    dtd = DoubleTalkDetector(block_length=S, nb_blocks_per_filter=3, forgetting_factor=alpha, background_filter_forgetting_factor=alpha-0.1)
+    nb_iterations = len(X)-3
 
-    for i in range(len(X)-3): #per block
+    dtd = CoherenceDoubleTalkDetector(block_length=S, lambda_coherence=0.8)
+    open_loop_rhos = np.zeros((nb_iterations,))
+    closed_loop_rhos = np.zeros((nb_iterations,))
+    adapt_flag = np.ones((nb_iterations,))
+
+    for i in range(nb_iterations): #per block
 
         Xm = np.diagflat(X[i,:])
-        
-        if freeze_index is None:
-            do_not_adapt = dtd.is_double_talk(x[S*(i+1):S*(i+2)], d[S*(i+1):S*(i+2)]) < double_talk_threshold
-        else:
-            do_not_adapt = (freeze_index[:,0]<=i*M).any() \
-                            and (i*M<freeze_index[:,1]).any()
-        
+
         Y = H@Xm
         yk = (k@(fft.ifft(Y).T)).real
         y[S*(i+1):S*(i+2)] = yk
         e[S*(i+1):S*(i+2)] = d[S*(i+1):S*(i+2)] - yk
 
+        open_loop_rhos[i], closed_loop_rhos[i] = dtd.is_double_talk(x[S*(i+1):S*(i+2)], d[S*(i+1):S*(i+2)], y[S*(i+1):S*(i+2)])
+        if freeze_index is None:
+            do_not_adapt = open_loop_rhos[i] < open_loop_threshold and closed_loop_rhos[i] < closed_loop_threshold and i > 20
+        else:
+            do_not_adapt = (freeze_index[:,0]<=i*M).any() \
+                            and (i*M<freeze_index[:,1]).any()
+        
         if do_not_adapt:
+            adapt_flag[i] = 0
             continue
 
         #adaptation
@@ -121,4 +134,4 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, double_talk_th
         H = H + H_upd.T
 
         print('Block: ', i, 'seconds:', i*M/rate, ' to', (i+1)*S/rate)
-    return e, y, H, p
+    return e, y, H, p, open_loop_rhos, closed_loop_rhos, adapt_flag
