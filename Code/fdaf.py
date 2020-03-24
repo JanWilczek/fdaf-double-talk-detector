@@ -38,7 +38,7 @@ def BFDF(X,H,S):
 
     return y.real
 
-def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, open_loop_threshold=0.8, closed_loop_threshold=0.95, freeze_index=None, rate=16000):
+def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, open_loop_threshold=0.8, closed_loop_threshold=0.95, lambda_coherence=0.8, freeze_index=None, rate=16000):
     """
     A Frequency-domain adaptive filter based on overlap-add method.
 
@@ -97,7 +97,7 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, open_loop_thre
 
     nb_iterations = len(X)-3
 
-    dtd = CoherenceDoubleTalkDetector(block_length=S, lambda_coherence=0.8)
+    dtd = CoherenceDoubleTalkDetector(block_length=S, lambda_coherence=lambda_coherence)
     open_loop_rhos = np.zeros((nb_iterations,))
     closed_loop_rhos = np.zeros((nb_iterations,))
     adapt_flag = np.ones((nb_iterations,))

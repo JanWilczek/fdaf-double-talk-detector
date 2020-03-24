@@ -146,6 +146,37 @@ def plot_signals(signal_microphone, signal_loudspeaker, impulse_response, signal
     plt.tight_layout(pad=1.2)
     plt.show()
 
+def plot_dtd_results(signal_noise, block_length, open_loop_xis, closed_loop_xis, T_ol, T_cl, adapt_flag):
+    def rescale(x, scale): 
+        output = np.zeros((len(x)*scale,))
+        for i in range(len(x)):
+            output[i*scale:(i+1)*scale] = x[i]
+        return output
+
+    open_loop_xis_rescaled = rescale(open_loop_xis, block_length)
+    closed_loop_xis_rescaled = rescale(closed_loop_xis, block_length)
+    adapt_flag_rescaled = rescale(adapt_flag, block_length)
+    
+    plt.figure(figsize=(7,7))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+
+    ax1.plot(signal_noise)
+    ax2.set_title('Near-end speaker signal')
+
+    ax2.plot(open_loop_xis_rescaled, 'C0--')
+    ax2.plot(closed_loop_xis_rescaled, 'C1--')
+    ax2.hlines(T_ol, xmin=0, xmax=len(open_loop_xis_rescaled)-1, colors='C0')
+    ax2.hlines(T_cl, xmin=0, xmax=len(open_loop_xis_rescaled)-1, colors='C1')
+    ax2.legend = [r'$\xi_{ol}$', r'$\xi_{cl}$']
+
+    ax3.plot(adapt_flag_rescaled)
+    ax3.set_title('Adaptation flag')
+    ax3.set_yticks([0, 1])
+    ax3.set_yticklabels(['do not adapt', 'adapt'])
+
+    plt.show()
+    
+
 def dft_matrix(size):
     F = np.zeros((size, size), dtype=complex)
     for nu in range(0, size):
