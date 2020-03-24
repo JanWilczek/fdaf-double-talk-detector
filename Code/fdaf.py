@@ -70,6 +70,13 @@ def FDAF_OS(x, d, M=2400, S=1200, alpha=0.85, delta=1e-8, mu=0.3, open_loop_thre
     ----------
     W : filter
     E : filter output (error)
+    e
+    y
+    H
+    p
+    open_loop_rhos
+    closed_loop_rhos
+    adapt_flag
     """
 
     x_ = get_shifted_blocks(x,M,S)
